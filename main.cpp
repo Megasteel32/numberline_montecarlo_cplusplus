@@ -3,11 +3,12 @@
 #include <vector>
 #include <chrono>
 #include <thread>
-#include <atomic>
 #include <algorithm>
 #include <numeric>
 #include <iomanip>
 #include <sstream>
+#include <string>
+#include <unordered_map>
 
 struct SimulationResult {
     double min_sum;
@@ -63,31 +64,48 @@ std::pair<double, double> parallel_simulate(int total_simulations, int num_threa
     return {total_result.min_sum / total_simulations, total_result.max_sum / total_simulations};
 }
 
-// Helper function to format doubles
 std::string format_double(double value, int precision = 8) {
     std::ostringstream oss;
     oss << std::fixed << std::setprecision(precision) << value;
     return oss.str();
 }
 
-int main(int argc, char* argv[]) {
-    int total_simulations = 100'000'000;  // Default value
-    int num_threads = 1;  // Default to 1 thread
+void print_usage() {
+    std::cout << "Usage: ./program [options]\n"
+              << "Options:\n"
+              << "  -s <num>    Set the number of simulations (default: 100000000)\n"
+              << "  -t <num>    Set the number of threads (default: 1)\n";
+}
 
-    if (argc > 1) {
-        try {
-            total_simulations = std::stoi(argv[1]);
-        } catch (const std::exception& e) {
-            std::cerr << "Error: Invalid argument for number of simulations. Using default value of 100,000,000.\n";
+int main(int argc, char* argv[]) {
+    int total_simulations = 100'000'000;
+    int num_threads = 1;
+
+    std::unordered_map<std::string, std::string> args;
+    for (int i = 1; i < argc; i += 2) {
+        if (i + 1 < argc) {
+            args[argv[i]] = argv[i + 1];
+        } else {
+            std::cerr << "Error: Missing value for " << argv[i] << "\n";
+            print_usage();
+            return 1;
         }
     }
 
-    if (argc > 2) {
+    if (args.count("-s")) {
         try {
-            num_threads = std::stoi(argv[2]);
-            if (num_threads < 1) {
-                throw std::runtime_error("Number of threads must be at least 1");
-            }
+            total_simulations = std::stoi(args["-s"]);
+            if (total_simulations <= 0) throw std::runtime_error("Number of simulations must be positive");
+        } catch (const std::exception& e) {
+            std::cerr << "Error: Invalid argument for number of simulations. Using default value of 100,000,000.\n";
+            total_simulations = 100'000'000;
+        }
+    }
+
+    if (args.count("-t")) {
+        try {
+            num_threads = std::stoi(args["-t"]);
+            if (num_threads < 1) throw std::runtime_error("Number of threads must be at least 1");
         } catch (const std::exception& e) {
             std::cerr << "Error: Invalid argument for number of threads. Using 1 thread.\n";
             num_threads = 1;
